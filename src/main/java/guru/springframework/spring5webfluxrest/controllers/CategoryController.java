@@ -1,7 +1,16 @@
 package guru.springframework.spring5webfluxrest.controllers;
 
+import java.util.Objects;
+
+import org.reactivestreams.Publisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import guru.springframework.spring5webfluxrest.domain.Category;
@@ -29,5 +38,29 @@ public class CategoryController {
 		return categoryRepository.findById(id);
 	}
 	
+	@ResponseStatus(HttpStatus.CREATED)
+	@PostMapping("/api/v1/categories")
+	Mono<Void> create(@RequestBody Publisher<Category> categoryStream){
+		return categoryRepository.saveAll(categoryStream).then();
+	}
+	
+	@ResponseStatus(HttpStatus.OK)
+	@PutMapping("/api/v1/categories/{id}")
+	Mono<Category> update(@PathVariable String id, @RequestBody Category category){
+		category.setId(id);		
+		return categoryRepository.save(category);
+	}
+	
+	@ResponseStatus(HttpStatus.OK)
+	@PatchMapping("/api/v1/categories/{id}")
+	Mono<Category> patch(@PathVariable String id, @RequestBody Category category){
+		Mono<Category> foundCategory = categoryRepository.findById(id);
+		
+		return foundCategory.filter(f -> !Objects.equals(f.getDescription(), category.getDescription()))
+		.flatMap(f -> {
+			f.setDescription(category.getDescription());
+			return categoryRepository.save(f);
+		}).switchIfEmpty(foundCategory);
+	}
 	
 }
